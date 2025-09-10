@@ -7,12 +7,10 @@ import os
 import json
 from threading import Thread
 
-# This ensures we can find our other project modules
 project_dir = os.path.dirname(os.path.abspath(__file__))
 sys.path.append(project_dir)
 python_exe = sys.executable
 
-# --- MODIFICATION: Import the new path helpers ---
 from supervisor_logic import SupervisorWorker
 from paths import get_system_data_dir # Use the system path for the service
 
@@ -38,7 +36,6 @@ class SupervisorService(win32serviceutil.ServiceFramework):
         win32event.SetEvent(self.hWaitStop)
 
     def SvcDoRun(self):
-        # --- MODIFICATION: Set working directory and find config in ProgramData ---
         system_data_dir = get_system_data_dir()
         os.chdir(system_data_dir) # Change working dir to the data dir
         
@@ -57,7 +54,6 @@ class SupervisorService(win32serviceutil.ServiceFramework):
             name = app_config['name']
             servicemanager.LogInfoMsg(f"PySupervisorService - Starting thread for '{name}'.")
             
-            # --- MODIFICATION: Ensure logs from the service also go to ProgramData ---
             if app_config.get('output'):
                 log_path = system_data_dir / app_config['output']
                 app_config['output'] = str(log_path)
