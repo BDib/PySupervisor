@@ -23,7 +23,6 @@ class MainWindow(QMainWindow):
         self.user_data_dir = get_user_data_dir()
         self.config_path = self.user_data_dir / "config.json"
         
-        # --- MODIFICATION: Consistent App Name ---
         self.setWindowTitle("PySupervisor")
         self.setGeometry(100, 100, 900, 650)
         self.threads = {}
@@ -34,7 +33,6 @@ class MainWindow(QMainWindow):
         self.init_tray_icon()
         
     def init_ui(self):
-        # This method is unchanged
         central_widget = QWidget()
         main_layout = QVBoxLayout(central_widget)
         self.setCentralWidget(central_widget)
@@ -68,7 +66,6 @@ class MainWindow(QMainWindow):
         
         tray_menu = QMenu()
         
-        # --- MODIFICATION: Reordered menu entries per your request ---
         
         # 1. About Action
         about_action = QAction("About PySupervisor", self)
@@ -126,7 +123,6 @@ class MainWindow(QMainWindow):
         about_dialog = AboutDialog(self)
         about_dialog.exec()
 
-    # ... (The rest of the file is unchanged)
     def on_tray_icon_activated(self, reason):
         if reason == QSystemTrayIcon.Trigger: self.show_window()
 
