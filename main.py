@@ -63,7 +63,6 @@ def run_standalone_mode():
     thread.started.connect(worker.run)
     worker.status_update.connect(lambda name, status: app.quit() if status.startswith("STOPPED") else None)
     
-    # --- MODIFICATION: Improved shutdown logic ---
     def stop_on_interrupt(*args):
         """A more robust shutdown handler for Ctrl+C."""
         print("\n--- Ctrl+C detected. Shutting down... ---")
