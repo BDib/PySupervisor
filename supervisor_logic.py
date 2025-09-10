@@ -28,7 +28,6 @@ class SupervisorWorker(QObject):
         restart_delay = 1
         MAX_RESTART_DELAY = 60
         
-        # --- FIX: Initialize output_handle to None before the try block ---
         output_handle = None
 
         while self.is_running:
