@@ -6,10 +6,9 @@ import argparse
 import traceback
 from datetime import datetime
 from utils import is_admin
-# --- MODIFICATION: Import the new path helper ---
 from paths import get_admin_log_path
 
-# --- MODIFICATION: Use the new helper for the log file path ---
+
 LOG_FILE = get_admin_log_path()
 
 def log_message(message):
@@ -38,7 +37,6 @@ def run_service_command(command):
     if result.stderr: log_message(f"STDERR: {result.stderr.strip()}")
 
 def add_to_scheduler():
-    # --- MODIFICATION: Use consistent application name ---
     task_name = "PySupervisor"
     main_script_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "main.py"))
     pythonw_path = sys.executable.replace("python.exe", "pythonw.exe")
@@ -47,7 +45,6 @@ def add_to_scheduler():
     subprocess.run(command, check=True, capture_output=True, text=True)
 
 def remove_from_scheduler():
-    # --- MODIFICATION: Use consistent application name ---
     task_name = "PySupervisor"
     command = ['schtasks', '/delete', '/tn', task_name, '/f']
     log_message(f"Running command: {' '.join(command)}")
