@@ -1,0 +1,17 @@
+{
+  "apps": [
+    {
+      "name": "google-ping-test",
+      "command": ["ping", "google.com", "-t"],
+      "restart": true,
+      "restart_on_failure": false,
+      "output": "google-ping.log"
+    },
+    {
+      "name": "local-web-server",
+      "command": ["python", "-m", "http.server", "8000"],
+      "restart_on_failure": true,
+      "output": "web-server.log"
+    }
+  ]
+}
