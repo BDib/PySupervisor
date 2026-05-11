@@ -12,6 +12,7 @@ class SupervisorWorker(QObject):
     """
     log_message = Signal(str)
     status_update = Signal(str, str) # name, status
+    stats_update = Signal(str, dict) # name, stats (cpu, mem)
 
     def __init__(self, proc_config):
         super().__init__()
@@ -22,8 +23,16 @@ class SupervisorWorker(QObject):
     @Slot()
     def run(self):
         """Main supervision loop for a single process."""
-        name = self.proc_config['name']
-        command = self.proc_config['command']
+        import psutil
+        name = self.proc_config.get('name', 'Unknown')
+        command = self.proc_config.get('command', [])
+        cwd = self.proc_config.get('cwd')
+        if cwd == "": cwd = None
+
+        env = os.environ.copy()
+        custom_env = self.proc_config.get('env', {})
+        if custom_env:
+            env.update(custom_env)
         
         restart_delay = 1
         MAX_RESTART_DELAY = 60
@@ -33,13 +42,34 @@ class SupervisorWorker(QObject):
         while self.is_running:
             process_start_time = time.time()
             try:
-                self.log_message.emit(f"[{name}] Starting command: {' '.join(command)}")
+                cmd_str = ' '.join(command) if isinstance(command, list) else command
+                self.log_message.emit(f"[{name}] Starting command: {cmd_str}")
                 creation_flags = subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0
-                output_handle = open(self.proc_config.get('output', os.devnull), 'ab', buffering=0)
+
+                output_path = self.proc_config.get('output')
+                if output_path:
+                    # Log rotation: if file > 5MB, rotate it
+                    try:
+                        if os.path.exists(output_path) and os.path.getsize(output_path) > 5 * 1024 * 1024:
+                            # Using os.replace instead of os.rename for atomic replacement on Windows
+                            os.replace(output_path, output_path + ".old")
+                    except Exception as e:
+                        self.log_message.emit(f"[{name}] Log rotation failed: {e}")
+
+                    output_handle = open(output_path, 'ab', buffering=0)
+                else:
+                    output_handle = open(os.devnull, 'ab', buffering=0)
 
                 self.process = subprocess.Popen(
-                    command, stdout=output_handle, stderr=subprocess.STDOUT, creationflags=creation_flags
+                    command,
+                    stdout=output_handle,
+                    stderr=subprocess.STDOUT,
+                    creationflags=creation_flags,
+                    cwd=cwd,
+                    env=env
                 )
+
+                p_util = psutil.Process(self.process.pid)
                 self.status_update.emit(name, f"RUNNING (PID: {self.process.pid})")
 
                 while self.is_running:
@@ -47,8 +77,18 @@ class SupervisorWorker(QObject):
                     if return_code is not None:
                         self.log_message.emit(f"[{name}] Process exited with code {return_code}.")
                         self.status_update.emit(name, f"STOPPED (Code: {return_code})")
+                        self.stats_update.emit(name, {"cpu": 0, "mem": 0})
                         break
-                    time.sleep(0.5)
+
+                    try:
+                        with p_util.oneshot():
+                            cpu_percent = p_util.cpu_percent()
+                            mem_info = p_util.memory_info().rss / (1024 * 1024) # MB
+                        self.stats_update.emit(name, {"cpu": cpu_percent, "mem": mem_info})
+                    except (psutil.NoSuchProcess, psutil.AccessDenied):
+                        pass
+
+                    time.sleep(1.0)
 
             except Exception as e:
                 self.log_message.emit(f"[{name}] Error: {e}")

@@ -59,6 +59,7 @@ def run_standalone_mode():
 
     worker.log_message.connect(print)
     worker.status_update.connect(lambda name, status: print(f"STATUS UPDATE for '{name}': {status}"))
+    worker.stats_update.connect(lambda name, stats: print(f"STATS for '{name}': CPU: {stats['cpu']:.1f}%, MEM: {stats['mem']:.1f}MB"))
     
     thread.started.connect(worker.run)
     worker.status_update.connect(lambda name, status: app.quit() if status.startswith("STOPPED") else None)
