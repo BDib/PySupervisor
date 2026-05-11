@@ -37,15 +37,20 @@ class MainWindow(QMainWindow):
         main_layout = QVBoxLayout(central_widget)
         self.setCentralWidget(central_widget)
         self.process_table = QTableWidget()
-        self.process_table.setColumnCount(4)
-        self.process_table.setHorizontalHeaderLabels(["Name", "Status", "Command", "Actions"])
+        self.process_table.setColumnCount(6)
+        self.process_table.setHorizontalHeaderLabels(["Name", "Status", "CPU (%)", "Memory (MB)", "Command", "Actions"])
         self.process_table.horizontalHeader().setSectionResizeMode(0, QHeaderView.ResizeToContents)
         self.process_table.horizontalHeader().setSectionResizeMode(1, QHeaderView.ResizeToContents)
-        self.process_table.horizontalHeader().setSectionResizeMode(2, QHeaderView.Stretch)
+        self.process_table.horizontalHeader().setSectionResizeMode(2, QHeaderView.ResizeToContents)
         self.process_table.horizontalHeader().setSectionResizeMode(3, QHeaderView.ResizeToContents)
+        self.process_table.horizontalHeader().setSectionResizeMode(4, QHeaderView.Stretch)
+        self.process_table.horizontalHeader().setSectionResizeMode(5, QHeaderView.ResizeToContents)
         main_layout.addWidget(self.process_table)
+
         self.log_viewer = QTextEdit()
         self.log_viewer.setReadOnly(True)
+        self.log_viewer.setMinimumHeight(150)
+        self.log_viewer.setStyleSheet("background-color: #1e1e1e; color: #dcdcdc; font-family: 'Consolas', monospace;")
         main_layout.addWidget(self.log_viewer)
         button_layout = QHBoxLayout()
         self.start_all_button = QPushButton("Start All")
@@ -157,7 +162,10 @@ class MainWindow(QMainWindow):
             self.process_table.insertRow(i)
             self.process_table.setItem(i, 0, QTableWidgetItem(app_config['name']))
             self.process_table.setItem(i, 1, QTableWidgetItem("STOPPED"))
-            self.process_table.setItem(i, 2, QTableWidgetItem(' '.join(app_config['command'])))
+            self.process_table.setItem(i, 2, QTableWidgetItem("0.0"))
+            self.process_table.setItem(i, 3, QTableWidgetItem("0.0"))
+            cmd = app_config['command']
+            self.process_table.setItem(i, 4, QTableWidgetItem(' '.join(cmd) if isinstance(cmd, list) else cmd))
             self.add_action_buttons(i, app_config['name'])
             
     def add_action_buttons(self, row, name):
@@ -169,7 +177,7 @@ class MainWindow(QMainWindow):
         stop_button.clicked.connect(lambda: self.stop_process(name))
         layout.addWidget(start_button)
         layout.addWidget(stop_button)
-        self.process_table.setCellWidget(row, 3, widget)
+        self.process_table.setCellWidget(row, 5, widget)
 
     def start_process(self, name):
         if name in self.threads and self.threads[name].isRunning(): return
@@ -184,6 +192,7 @@ class MainWindow(QMainWindow):
         worker.moveToThread(thread)
         worker.log_message.connect(self.append_log_message)
         worker.status_update.connect(self.update_process_status)
+        worker.stats_update.connect(self.update_process_stats)
         thread.started.connect(worker.run)
         self.threads[name], self.workers[name] = thread, worker
         thread.start()
@@ -224,5 +233,16 @@ class MainWindow(QMainWindow):
         for row in range(self.process_table.rowCount()):
             if self.process_table.item(row, 0).text() == name:
                 self.process_table.setItem(row, 1, QTableWidgetItem(status))
-                if (status.startswith("STOPPED") or status.startswith("ERROR")) and name in self.threads: self.threads[name].quit()
+                if (status.startswith("STOPPED") or status.startswith("ERROR")) and name in self.threads:
+                    self.threads[name].quit()
+                    self.process_table.setItem(row, 2, QTableWidgetItem("0.0"))
+                    self.process_table.setItem(row, 3, QTableWidgetItem("0.0"))
+                break
+
+    @Slot(str, dict)
+    def update_process_stats(self, name, stats):
+        for row in range(self.process_table.rowCount()):
+            if self.process_table.item(row, 0).text() == name:
+                self.process_table.setItem(row, 2, QTableWidgetItem(f"{stats['cpu']:.1f}"))
+                self.process_table.setItem(row, 3, QTableWidgetItem(f"{stats['mem']:.1f}"))
                 break
